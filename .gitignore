@@ -1,0 +1,79 @@
+############################
+# Build / Runtime Outputs #
+############################
+
+# Build artifacts
+bin/
+obj/
+out/
+publish/
+
+# .NET User settings
+*.user
+*.suo
+
+# Visual Studio / VS Code specific
+.vscode/
+*.code-workspace
+
+# NuGet packages
+*.nupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.json
+
+# Logs
+*.log
+logs/
+*.jsonl
+
+# Cache files
+*.cache
+*.temp
+*.tmp
+*.pid
+
+# Environment / secrets
+*.env
+*.env.local
+*.secret
+secrets.json
+
+# IDE junk
+.vs/
+.idea/
+*.DS_Store
+
+# PowerShell history
+*.pshistory
+
+# Windows trash
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+############################
+# Application-Specific     #
+############################
+
+# ETW Session temporary traces
+*.etl
+trace/
+
+# ScreenMonitor output
+ScreenMonitor/logs/
+
+# If you store config later:
+config.json
+appsettings.json
+appsettings.Development.json
+
+############################
+# Optional: Remove publish #
+############################
+
+# If you publish single-file:
+*.exe
+*.dll
+*.pdb
