@@ -6,86 +6,69 @@ public class EtwListener
 {
   public event Action<CaptureEvent>? OnCapture;
 
-  // === Spam kontrol ===
-  private static Dictionary<int, DateTime> lastEvent = new();
-  private const int COOLDOWN_MS = 5000; // Aynı uygulama için 5 saniyeden önce tekrar event verme
-
   public void Start()
   {
     Task.Run(() =>
     {
-      using var session = new TraceEventSession("ScreenCaptureSession");
+      using var session = new TraceEventSession("SecurityCaptureSession");
+
+      // ===========================
+      // 🎥 GERÇEK EKRAN KAYDI (GPU)
+      // ===========================
+      session.EnableProvider("Microsoft-Windows-DXGI");
+      session.EnableProvider("Microsoft-Windows-D3D11");
+      session.EnableProvider("Microsoft-Windows-WinRT-Graphics-Capture");
+
+      // ===========================
+      // 🎤 GERÇEK SES / MİKROFON
+      // ===========================
+      session.EnableProvider("Microsoft-Windows-Audio");
+      session.EnableProvider("Microsoft-Windows-MMDevice");
+      session.EnableProvider("Microsoft-Windows-WASAPI");
+
+      // ===========================
+      // ⌨️ GERÇEK INPUT / HOOK
+      // ===========================
+      session.EnableProvider("Microsoft-Windows-UserInput");
+      session.EnableProvider("Microsoft-Windows-Input");
+
+      // ===========================
+      // (İsteğe bağlı) UI seviyesi
+      // ===========================
       session.EnableProvider("Microsoft-Windows-Win32k");
 
       session.Source.Dynamic.All += evt =>
           {
             string eventName = evt.EventName;
-
-            // === 1) SADECE GERÇEK SCREEN CAPTURE EVENTLERİ ===
-            if (!(eventName.Contains("BitBlt") ||
-                      eventName.Contains("CopySurface") ||
-                      eventName.Contains("PrintWindow")))
-            {
-              return;
-            }
-
             int pid = evt.ProcessID;
             string proc = GetProcessNameSafe(pid);
 
-            // === 2) Sistem süreçlerini ignore et ===
-            if (proc.Equals("dwm", StringComparison.OrdinalIgnoreCase) ||
-                    proc.Equals("explorer", StringComparison.OrdinalIgnoreCase) ||
-                    proc.Equals("ShellExperienceHost", StringComparison.OrdinalIgnoreCase))
-            {
-              return;
-            }
-
-            // === 3) Track edilmeyen app ise ignore ===
+            // ✅ Sadece kullanıcı tarafından track edilenler
             if (!TrackingManager.IsTracked(proc))
               return;
 
-            // === 4) SPAM ÖNLEME / COOL-DOWN ===
-            if (lastEvent.ContainsKey(pid))
-            {
-              double diff = (DateTime.Now - lastEvent[pid]).TotalMilliseconds;
+            // ✅ Sadece gerçekten tehlikeli event'ler
+            if (!DangerousEventFilter.IsDangerous(eventName))
+              return;
 
-              if (diff < COOLDOWN_MS)
-                return; // Çok sık geliyorsa at
-            }
-
-            lastEvent[pid] = DateTime.Now;
-
-            // === 5) ARTIK EVENT GERÇEK ===
-            OnCapture?.Invoke(new CaptureEvent
+            var capture = new CaptureEvent
             {
               Process = proc,
               PID = pid,
+              EventName = eventName,
               Timestamp = DateTime.Now
-            });
+            };
+
+            OnCapture?.Invoke(capture);
           };
 
       session.Source.Process();
     });
   }
 
-  // Güvenli şekilde process adını alma
   private static string GetProcessNameSafe(int pid)
   {
-    try
-    {
-      var p = Process.GetProcessById(pid);
-      return p.ProcessName;
-    }
-    catch
-    {
-      return "unknown";
-    }
+    try { return Process.GetProcessById(pid).ProcessName; }
+    catch { return "unknown"; }
   }
-}
-
-public class CaptureEvent
-{
-  public string? Process { get; set; }
-  public int PID { get; set; }
-  public DateTime Timestamp { get; set; }
 }

@@ -1,12 +1,14 @@
-using System;
 using System.Diagnostics;
 
 public static class Notifier
 {
     public static void Notify(CaptureEvent ev)
     {
-        string title = "Screen Capture Detected";
-        string message = $"{ev.Process} (PID {ev.PID})";
+        if (!NotificationOnceGuard.CanNotify(ev.Process ?? "unknown"))
+            return;
+
+        string title = "⚠️ Screen / Mic / Input Detected";
+        string message = $"{ev.Process} → {ev.EventName}";
 
         string psCommand =
             $"New-BurntToastNotification -Text '{title}','{message}'";
@@ -14,11 +16,11 @@ public static class Notifier
         var psi = new ProcessStartInfo()
         {
             FileName = "powershell.exe",
-            Arguments = $"-Command \"{psCommand}\"",
+            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psCommand}\"",
             UseShellExecute = false,
             CreateNoWindow = true
         };
 
-        Process.Start(psi);
+        try { Process.Start(psi); } catch { }
     }
 }
